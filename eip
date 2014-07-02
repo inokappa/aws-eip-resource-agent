@@ -82,7 +82,7 @@ eip_start() {
     if [ $? =  $OCF_SUCCESS ]; then
 	return $OCF_SUCCESS
     fi
-    /usr/bin/aws ec2 associate-address --public-ip ${OCF_RESKEY_elastic_ip} --instance-id ${instance_id}
+    /usr/bin/aws ec2 associate-address --allocation-id ${alloc_id} --network-interface-id ${interface_id} --private-ip-address ${local_ip}
 }
 
 eip_stop() {
@@ -106,6 +106,10 @@ eip_validate() {
 }
 
 instance_id=`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`
+local_ip=`wget -q -O - http://169.254.169.254/latest/meta-data/local-ipv4`
+alloc_id=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} --query "Addresses[*].AllocationId" --output text`
+mac_addr=`/sbin/ip link show eth0 | tail -1 | awk '{print $2}'`
+interface_id=`wget -q -O - http://169.254.169.254/latest/meta-data/network/interfaces/macs/${mac_addr}/interface-id`
 
 case $__OCF_ACTION in
 meta-data)	meta_data
