@@ -77,12 +77,29 @@ Expects to have a fully populated OCF RA-compliant environment set.
 END
 }
 
+get_instance_id() {
+  instance_id=`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`
+}
+
+get_alloc_id() {
+  alloc_id=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} \
+  --query "Addresses[*].AllocationId" \
+  --output text`
+}
+
+get_interfece_id() {
+  mac_addr=`/sbin/ip link show ${OCF_RESKEY_eip_if} | tail -1 | awk '{print $2}'`
+  interface_id=`wget -q -O - http://169.254.169.254/latest/meta-data/network/interfaces/macs/${mac_addr}/interface-id`
+}
+
 eip_start() {
+    get_alloc_id
+    get_interface_id
     eip_monitor
     if [ $? =  $OCF_SUCCESS ]; then
-	return $OCF_SUCCESS
+	  return $OCF_SUCCESS
     fi
-    /usr/bin/aws ec2 associate-address --allocation-id ${alloc_id} --network-interface-id ${interface_id} --private-ip-address ${local_ip}
+    /usr/bin/aws ec2 associate-address --allocation-id ${alloc_id} --network-interface-id ${interface_id}
 }
 
 eip_stop() {
@@ -94,6 +111,7 @@ eip_stop() {
 }
 
 eip_monitor() {
+    get_instance_id
     mon=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} --filters "Name=instance-id,Values=${instance_id}" --output json | grep ${instance_id} | wc -l`	
     if [ $mon -ne 0  ]; then
         return $OCF_SUCCESS
@@ -105,11 +123,6 @@ eip_validate() {
     return $OCF_SUCCESS
 }
 
-instance_id=`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id`
-local_ip=`wget -q -O - http://169.254.169.254/latest/meta-data/local-ipv4`
-alloc_id=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} --query "Addresses[*].AllocationId" --output text`
-mac_addr=`/sbin/ip link show eth0 | tail -1 | awk '{print $2}'`
-interface_id=`wget -q -O - http://169.254.169.254/latest/meta-data/network/interfaces/macs/${mac_addr}/interface-id`
 
 case $__OCF_ACTION in
 meta-data)	meta_data
@@ -129,4 +142,3 @@ esac
 rc=$?
 ocf_log debug "${OCF_RESOURCE_INSTANCE} $__OCF_ACTION : $rc"
 exit $rc
-
