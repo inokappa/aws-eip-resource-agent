@@ -91,11 +91,11 @@ get_instance_id() {
 
 get_alloc_id() {
   alloc_id=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} \
-  --query "Addresses[*].AllocationId" \
-  --output text`
+           --query "Addresses[*].AllocationId" \
+           --output text`
 }
 
-get_interfece_id() {
+get_interface_id() {
   mac_addr=`/sbin/ip link show ${OCF_RESKEY_eip_if} | tail -1 | awk '{print $2}'`
   interface_id=`wget -q -O - http://169.254.169.254/latest/meta-data/network/interfaces/macs/${mac_addr}/interface-id`
 }
@@ -120,7 +120,8 @@ eip_stop() {
 
 eip_monitor() {
     get_instance_id
-    mon=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} --filters "Name=instance-id,Values=${instance_id}" --output json | grep ${instance_id} | wc -l`	
+    mon=`/usr/bin/aws ec2 describe-addresses --public-ips ${OCF_RESKEY_elastic_ip} \
+        --filters "Name=instance-id,Values=${instance_id}" --output json | grep ${instance_id} | wc -l`	
     if [ $mon -ne 0  ]; then
         return $OCF_SUCCESS
     fi
